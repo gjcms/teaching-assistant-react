@@ -606,33 +606,37 @@ tbody tr:last-child td {
 /* Enhanced Evaluation Matrix Styles */
 .class-selection-container {
   margin-bottom: 2rem;
-  padding: 1rem;
-  background-color: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
+  border: 2px solid #0ea5e9;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.1);
 }
 
 .class-selection-container label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #374151;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+  color: #0c4a6e;
+  font-size: 1.1rem;
 }
 
 .class-select {
   width: 100%;
   max-width: 400px;
-  padding: 0.75rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 6px;
+  padding: 0.875rem 1rem;
+  border: 2px solid #0ea5e9;
+  border-radius: 8px;
   font-size: 1rem;
   background-color: white;
+  color: #0c4a6e;
+  font-weight: 500;
 }
 
 .class-select:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
 }
 
 .evaluation-table-container {
@@ -647,8 +651,9 @@ tbody tr:last-child td {
 
 .evaluation-matrix {
   overflow-x: auto;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #cbd5e1;
 }
 
 .evaluation-table {
@@ -660,71 +665,92 @@ tbody tr:last-child td {
 }
 
 .student-name-header {
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
   color: white;
   padding: 16px;
   text-align: center;
   font-weight: 700;
-  border: 1px solid #374151;
+  border: 1px solid #4338ca;
   position: sticky;
   left: 0;
   z-index: 10;
   width: 200px; /* Fixed width for student column */
   font-size: 1rem;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
 .goal-header {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
   padding: 16px 8px;
   text-align: center;
   font-weight: 700;
   font-size: 0.9rem;
-  border: 1px solid #2563eb;
+  border: 1px solid #047857;
   width: calc((100% - 200px) / 6); /* Equal width for all 6 goal columns */
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+  vertical-align: middle;
+  line-height: 1.2;
 }
 
 .student-row:nth-child(even) {
-  background-color: #f8fafc;
+  background-color: #f0f9ff;
+}
+
+.student-row:nth-child(odd) {
+  background-color: #ffffff;
 }
 
 .student-row:hover {
-  background-color: #f1f5f9;
+  background-color: #e0f2fe;
   transform: scale(1.001);
   transition: all 0.2s ease;
 }
 
 .student-name-cell {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
   padding: 16px;
   font-weight: 600;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #0ea5e9;
   position: sticky;
   left: 0;
   z-index: 5;
   width: 200px;
   text-align: center;
-  color: #374151;
-  box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+  color: #0c4a6e;
+  box-shadow: 2px 0 4px rgba(14, 165, 233, 0.1);
 }
 
 .student-row:nth-child(even) .student-name-cell {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+  color: #0c4a6e;
 }
 
 .student-row:hover .student-name-cell {
-  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  color: #0c4a6e;
 }
 
 .evaluation-cell {
   padding: 12px 8px;
   text-align: center;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #cbd5e1;
   width: calc((100% - 200px) / 6); /* Equal width for all goal columns */
   vertical-align: middle;
+}
+
+.student-row:nth-child(even) .evaluation-cell {
+  background-color: #f0f9ff;
+}
+
+.student-row:nth-child(odd) .evaluation-cell {
+  background-color: #ffffff;
+}
+
+.student-row:hover .evaluation-cell {
+  background-color: #e0f2fe;
 }
 
 .evaluation-select {
