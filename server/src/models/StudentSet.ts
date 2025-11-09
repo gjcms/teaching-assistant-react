@@ -35,10 +35,19 @@ export class StudentSet {
       throw new Error('Student not found');
     }
 
-    // Update only basic fields, preserve existing evaluations to maintain object identity
+    // Update basic fields
     existingStudent.name = updatedStudent.name;
     existingStudent.email = updatedStudent.email;
-    // evaluations are NOT updated here - use the dedicated evaluation API instead
+    
+    // Update evaluations by modifying individual elements to preserve object identity
+    // Clear existing evaluations first
+    existingStudent.evaluations.length = 0;
+    
+    // Add updated evaluations to the existing array
+    updatedStudent.evaluations.forEach(newEval => {
+      existingStudent.evaluations.push(newEval);
+    });
+    
     // CPF should not be updated as it's the identifier
     
     return existingStudent;
