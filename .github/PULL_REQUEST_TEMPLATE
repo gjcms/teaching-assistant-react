@@ -1,0 +1,27 @@
+# Pull Request
+
+## Descrição
+<!-- Descreva de forma clara o que este PR faz. Qual problema ele resolve ou qual funcionalidade adiciona. -->
+
+## Tipo de mudança
+<!-- Marque com x o que se aplica -->
+- [ ] Correção de bug
+- [ ] Nova funcionalidade
+- [ ] Refatoração
+- [ ] Atualização de documentação
+- [ ] Outro (descrever abaixo)
+
+## Como testar
+<!-- Instruções para testar as alterações, incluindo comandos, endpoints ou passos manuais -->
+1. 
+2. 
+3. 
+
+## Issues relacionadas
+<!-- Se aplicável, referencie issues relacionadas -->
+- Closes #ISSUE_NUMBER
+- Relacionado a #ISSUE_NUMBER
+
+## Observações
+<!-- Qualquer informação adicional relevante para o reviewer -->
+
