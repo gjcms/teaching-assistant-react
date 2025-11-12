@@ -441,11 +441,34 @@ app.put('/api/classes/:classId/enrollments/:studentCPF/evaluation', (req: Reques
   }
 });
 
-// PUT /api/classes/:classId/enrollments, used for import grades
+// POST /api/classes/:classId/enrollments, used for import grades
+// TODO APenas test de endpoint para testar o front
 app.post('/api/classes/evaluationImport/:classId', upload.single('file'), async (req: express.Request, res: express.Response) => {
   // arquivo, seja de .csv ou .xlsl
   const classId = req.params.classId; // basicamente o nome da turma
   const classObj = classes.findClassById(classId);
+  if (!classObj) {
+    return res.status(404).json({ error: 'Class not found' });
+  }
+  const enrollments = classObj.getEnrollments();
+  console.log(enrollments);
+  if (!enrollments) {
+    res.send({ status: 404 }); // erro de alguma coisa
+    return;
+  }
+  
+  // colunas que deve ter, basicamente o grade do class, se tiver colunas difrentes por classe
+  // const field_cols = ["d", "e", "f"];
+  const field_cols = Array.from(
+    new Set(
+      enrollments.flatMap(enrollment => 
+        enrollment.getEvaluations().map(eval_ => eval_.getGoal())
+      )
+    )
+  );
+  
+  console.log(field_cols);
+  // Lista com todos os goals únicos
   
   // const fileP = req.file?.path ?? ""; 
   // if (!fileP) {
@@ -499,8 +522,6 @@ app.post('/api/classes/evaluationImport/:classId', upload.single('file'), async 
   };
   // colunas do arquivo
   const file_cols = getCSVColumnsFromFile(fileP); 
-  // colunas que deve ter, basicamente o grade do class, se tiver colunas difrentes por classe
-  const field_cols = ["d", "e", "f"];
   // ignorar as linhas
   // apenas para teste
   res.send({ status: 200, session_string: fileP, file_columns: file_cols, mapping_colums: field_cols });
