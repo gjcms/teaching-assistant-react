@@ -8,10 +8,11 @@ import { Class } from './models/Class';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { CSVReader, SpreadsheetReader, XLSLReader } from './services/SpreeadsheetReader';
-
+// usado para ler arquivos em POST
 const multer = require('multer');
-const upload = multer({ dest: 'temp_data/' });
+
+// pasta usada para salvar os upload's feitos
+const upload_dir = multer({dest: 'tmp_data/'})
 
 const app = express();
 const PORT = 3005;
@@ -441,91 +442,98 @@ app.put('/api/classes/:classId/enrollments/:studentCPF/evaluation', (req: Reques
   }
 });
 
-// POST /api/classes/:classId/enrollments, used for import grades
-// TODO APenas test de endpoint para testar o front
-app.post('/api/classes/evaluationImport/:classId', upload.single('file'), async (req: express.Request, res: express.Response) => {
-  // arquivo, seja de .csv ou .xlsl
-  const classId = req.params.classId; // basicamente o nome da turma
-  const classObj = classes.findClassById(classId);
-  if (!classObj) {
-    return res.status(404).json({ error: 'Class not found' });
-  }
-  const enrollments = classObj.getEnrollments();
-  console.log(enrollments);
-  if (!enrollments) {
-    res.send({ status: 404 }); // erro de alguma coisa
-    return;
-  }
+// ENDPOINT BASE, EM DEV
+// app.post('/api/classes/evaluationImport/:classId', upload.single('file'), async (req: express.Request, res: express.Response) => {
+//   // arquivo, seja de .csv ou .xlsl
+//   const classId = req.params.classId; // basicamente o nome da turma
+//   const classObj = classes.findClassById(classId);
+//   if (!classObj) {
+//     return res.status(404).json({ error: 'Class not found' });
+//   }
+//   const enrollments = classObj.getEnrollments();
+//   console.log(enrollments);
+//   if (!enrollments) {
+//     res.send({ status: 404 }); // erro de alguma coisa
+//     return;
+//   }
   
-  // colunas que deve ter, basicamente o grade do class, se tiver colunas difrentes por classe
-  // const field_cols = ["d", "e", "f"];
-  const field_cols = Array.from(
-    new Set(
-      enrollments.flatMap(enrollment => 
-        enrollment.getEvaluations().map(eval_ => eval_.getGoal())
-      )
-    )
-  );
+//   // colunas que deve ter, basicamente o grade do class, se tiver colunas difrentes por classe
+//   // const field_cols = ["d", "e", "f"];
+//   const field_cols = Array.from(
+//     new Set(
+//       enrollments.flatMap(enrollment => 
+//         enrollment.getEvaluations().map(eval_ => eval_.getGoal())
+//       )
+//     )
+//   );
   
-  console.log(field_cols);
-  // Lista com todos os goals únicos
+//   console.log(field_cols);
+//   // Lista com todos os goals únicos
   
-  // const fileP = req.file?.path ?? ""; 
-  // if (!fileP) {
-  //   return res.status(400).json({ error: "Arquivo não enviado" });
-  // }
+//   // const fileP = req.file?.path ?? ""; 
+//   // if (!fileP) {
+//   //   return res.status(400).json({ error: "Arquivo não enviado" });
+//   // }
   
-  // // pega as trocas de colunas do front de cara
-  // const newCols_Name = req.body.mapping ? JSON.parse(req.body.mapping) : null;
+//   // // pega as trocas de colunas do front de cara
+//   // const newCols_Name = req.body.mapping ? JSON.parse(req.body.mapping) : null;
   
-  // // TODO: Pegar as metas para a classe, esperando alguem implementar a modificacao de EVALUATION_GOALS por turma
-  // const default_fields: string[] = [...EVALUATION_GOALS]; ;
+//   // // TODO: Pegar as metas para a classe, esperando alguem implementar a modificacao de EVALUATION_GOALS por turma
+//   // const default_fields: string[] = [...EVALUATION_GOALS]; ;
   
-  // const ext = path.extname(fileP).toLowerCase();
-  // var reader: SpreadsheetReader<any>;
+//   // const ext = path.extname(fileP).toLowerCase();
+//   // var reader: SpreadsheetReader<any>;
   
-  // switch (ext) {
-  //   case ".csv":
-  //     reader = new CSVReader(fileP, newCols_Name, default_fields);
-  //     break;
-  //   case ".xlsx":
-  //     reader = new XLSLReader(fileP, newCols_Name, default_fields)
-  //     break;
-  //   default:
-  //     return res.status(415).json({ error: "Arquivo não suportado" });
-  // }
-  // try {
-  //   const lines = await reader.process(); 
-  //   // TODO: cria alunos e faz update dos grades aqui
-  //   return res.json(lines);
-  // } catch (err: any) {
-  //   return res.status(500).json({ error: err.message });
-  // }
-  const fileP = req.file?.path ?? "";
-  // Apenas teste:
-  const getCSVColumnsFromFile = (filePath: string) => {
-    try {
-      const fileContent = fs.readFileSync(filePath, 'utf8');
-      const firstLine = fileContent.split('\n')[0].replace(/\r$/, '');
+//   // switch (ext) {
+//   //   case ".csv":
+//   //     reader = new CSVReader(fileP, newCols_Name, default_fields);
+//   //     break;
+//   //   case ".xlsx":
+//   //     reader = new XLSLReader(fileP, newCols_Name, default_fields)
+//   //     break;
+//   //   default:
+//   //     return res.status(415).json({ error: "Arquivo não suportado" });
+//   // }
+//   // try {
+//   //   const lines = await reader.process(); 
+//   //   // TODO: cria alunos e faz update dos grades aqui
+//   //   return res.json(lines);
+//   // } catch (err: any) {
+//   //   return res.status(500).json({ error: err.message });
+//   // }
+//   const fileP = req.file?.path ?? "";
+//   // Apenas teste:
+//   const getCSVColumnsFromFile = (filePath: string) => {
+//     try {
+//       const fileContent = fs.readFileSync(filePath, 'utf8');
+//       const firstLine = fileContent.split('\n')[0].replace(/\r$/, '');
       
-      // Divide por vírgulas, mas ignora vírgulas dentro de aspas
-      const columns = firstLine.split(',').map(col => {
-        // Remove aspas se existirem
-        return col.replace(/^"|"$/g, '');
-      });
+//       // Divide por vírgulas, mas ignora vírgulas dentro de aspas
+//       const columns = firstLine.split(',').map(col => {
+//         // Remove aspas se existirem
+//         return col.replace(/^"|"$/g, '');
+//       });
       
-      return columns;
-    } catch (error) {
-      console.error('Erro ao ler arquivo:', error);
-      return [];
-    }
-  };
-  // colunas do arquivo
-  const file_cols = getCSVColumnsFromFile(fileP); 
-  // ignorar as linhas
-  // apenas para teste
-  res.send({ status: 200, session_string: fileP, file_columns: file_cols, mapping_colums: field_cols });
-})
+//       return columns;
+//     } catch (error) {
+//       console.error('Erro ao ler arquivo:', error);
+//       return [];
+//     }
+//   };
+//   // colunas do arquivo
+//   const file_cols = getCSVColumnsFromFile(fileP); 
+//   // ignorar as linhas
+//   // apenas para teste
+//   res.send({ status: 200, session_string: fileP, file_columns: file_cols, mapping_colums: field_cols });
+// })
+// -------------
+// POST api/classes/gradeImport/:classId, usado na feature de importacao de grades
+// Vai ser usado em 2 fluxos(poderia ter divido em 2 endpoints mas preferi deixar em apenas 1)
+// [Front] Upload → [Back] lê só o cabeçalho e retorna colunas da planilha e os goals da 'classId'
+// [Front] Mapeia colunas da planilha para os goals → [Back] faz parse completo (stream)
+app.post('/api/classes/gradeImport/:classId', upload_dir.single('file'), async (req: express.Request, res: express.Response) => {
+  res.status(501).json({ error: "Endpoint ainda não implementado." });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

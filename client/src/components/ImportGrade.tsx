@@ -2,16 +2,14 @@ import React, { useState, ChangeEvent, useEffect } from "react";
 import CustomFileInput from "./shared/InputFile/InputFile";
 const API_BASE_URL = 'http://localhost:3005';
 
-// Campos alvo para o mapping
 
-interface ImportComponentProps {
+interface ImportGradeComponentProps {
   classID: string
 }
-// componente especifico de de importacao de arquivos
-// ele tem 2 estados, o de selecionar o arquivo e o outro de fazer o mapping das colunas
-export const ImportComponent: React.FC<ImportComponentProps> = (
-{classID = ""}
-) => {
+
+export const ImportGradeComponent: React.FC<ImportGradeComponentProps> = (
+  { classID = "" }
+) => { 
   // Estado do passo atual
   const [step, setStep] = useState<number>(1);
 
@@ -65,7 +63,7 @@ export const ImportComponent: React.FC<ImportComponentProps> = (
 
       // TODO: tem de pegar o classesID do back quando selecionar no front
       try {
-        const response = await fetch(API_BASE_URL + '/api/classes/evaluationImport/' + classID, {
+        const response = await fetch(API_BASE_URL + '/api/classes/gradeImport/' + classID, {
           method: 'POST',
           body: formData,
         });
