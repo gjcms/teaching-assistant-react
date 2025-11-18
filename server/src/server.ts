@@ -443,97 +443,34 @@ app.put('/api/classes/:classId/enrollments/:studentCPF/evaluation', (req: Reques
   }
 });
 
-// ENDPOINT BASE, EM DEV
-// app.post('/api/classes/evaluationImport/:classId', upload.single('file'), async (req: express.Request, res: express.Response) => {
-//   // arquivo, seja de .csv ou .xlsl
-//   const classId = req.params.classId; // basicamente o nome da turma
-//   const classObj = classes.findClassById(classId);
-//   if (!classObj) {
-//     return res.status(404).json({ error: 'Class not found' });
-//   }
-//   const enrollments = classObj.getEnrollments();
-//   console.log(enrollments);
-//   if (!enrollments) {
-//     res.send({ status: 404 }); // erro de alguma coisa
-//     return;
-//   }
-  
-//   // colunas que deve ter, basicamente o grade do class, se tiver colunas difrentes por classe
-//   // const field_cols = ["d", "e", "f"];
-//   const field_cols = Array.from(
-//     new Set(
-//       enrollments.flatMap(enrollment => 
-//         enrollment.getEvaluations().map(eval_ => eval_.getGoal())
-//       )
-//     )
-//   );
-  
-//   console.log(field_cols);
-//   // Lista com todos os goals únicos
-  
-//   // const fileP = req.file?.path ?? ""; 
-//   // if (!fileP) {
-//   //   return res.status(400).json({ error: "Arquivo não enviado" });
-//   // }
-  
-//   // // pega as trocas de colunas do front de cara
-//   // const newCols_Name = req.body.mapping ? JSON.parse(req.body.mapping) : null;
-  
-//   // // TODO: Pegar as metas para a classe, esperando alguem implementar a modificacao de EVALUATION_GOALS por turma
-//   // const default_fields: string[] = [...EVALUATION_GOALS]; ;
-  
-//   // const ext = path.extname(fileP).toLowerCase();
-//   // var reader: SpreadsheetReader<any>;
-  
-//   // switch (ext) {
-//   //   case ".csv":
-//   //     reader = new CSVReader(fileP, newCols_Name, default_fields);
-//   //     break;
-//   //   case ".xlsx":
-//   //     reader = new XLSLReader(fileP, newCols_Name, default_fields)
-//   //     break;
-//   //   default:
-//   //     return res.status(415).json({ error: "Arquivo não suportado" });
-//   // }
-//   // try {
-//   //   const lines = await reader.process(); 
-//   //   // TODO: cria alunos e faz update dos grades aqui
-//   //   return res.json(lines);
-//   // } catch (err: any) {
-//   //   return res.status(500).json({ error: err.message });
-//   // }
-//   const fileP = req.file?.path ?? "";
-//   // Apenas teste:
-//   const getCSVColumnsFromFile = (filePath: string) => {
-//     try {
-//       const fileContent = fs.readFileSync(filePath, 'utf8');
-//       const firstLine = fileContent.split('\n')[0].replace(/\r$/, '');
-      
-//       // Divide por vírgulas, mas ignora vírgulas dentro de aspas
-//       const columns = firstLine.split(',').map(col => {
-//         // Remove aspas se existirem
-//         return col.replace(/^"|"$/g, '');
-//       });
-      
-//       return columns;
-//     } catch (error) {
-//       console.error('Erro ao ler arquivo:', error);
-//       return [];
-//     }
-//   };
-//   // colunas do arquivo
-//   const file_cols = getCSVColumnsFromFile(fileP); 
-//   // ignorar as linhas
-//   // apenas para teste
-//   res.send({ status: 200, session_string: fileP, file_columns: file_cols, mapping_colums: field_cols });
-// })
-// -------------
 // POST api/classes/gradeImport/:classId, usado na feature de importacao de grades
 // Vai ser usado em 2 fluxos(poderia ter divido em 2 endpoints mas preferi deixar em apenas 1)
 // [Front] Upload → [Back] lê só o cabeçalho e retorna colunas da planilha e os goals da 'classId'
 // [Front] Mapeia colunas da planilha para os goals → [Back] faz parse completo (stream)
 app.post('/api/classes/gradeImport/:classId', upload_dir.single('file'), async (req: express.Request, res: express.Response) => {
+  const classId = req.params.classId;
+  const classObj = classes.findClassById(classId);
+  if (!classObj) {
+    return res.status(404).json({ error: "Class not Found" });
+    return;
+  }
+
+  const enroll = classObj.getEnrollments();
+  if (!enroll) {
+    res.status(404).json({ error: "Enrolments not found" });
+    return;
+  }
+  // pegar os goals + cpf, de forma condizente com os dados e nao algo hardcoded
+  var goals_field = Array.from(
+    new Set(
+      enroll.flatMap(enrollment =>
+        enrollment.getEvaluations().map(eval_ => eval_.getGoal())
+      )
+    )
+  );
+  goals_field.push("cpf");
   // 2 tipos de resposta, quando manda arquivo e quando nao manda, quando manda:
+  // recebe um .csv ou .xlsl
   // res.send({ status: 200, session_string: fileP, file_columns: file_cols, mapping_colums: field_cols });
   // fileP e como se fosse um sessionID, sem mexer com sessao necessariamente
   // file_columns e o nome das colunas do arquivo
@@ -541,42 +478,37 @@ app.post('/api/classes/gradeImport/:classId', upload_dir.single('file'), async (
   // o outro tipo de resposta e apenas um res.send({status: 200}), que ja recebe os dados
   const fileP = req.file?.path ?? ""; 
   if (fileP) {
-  
-    const classId = req.params.classId;
-    const classObj = classes.findClassById(classId);
-    if (!classObj) {
-      return res.status(404).json({ error: "Class not Found" });
-      return;
-    }
-  
-    const enroll = classObj.getEnrollments();
-    if (!enroll) {
-      res.status(404).json({ error: "Enrolments not found" });
-      return;
-    }
-
-  
-  
-    // pegar os goals, de forma condizente com os dados e nao algo hardcoded
-    const goals_field = Array.from(
-      new Set(
-        enroll.flatMap(enrollment =>
-          enrollment.getEvaluations().map(eval_ => eval_.getGoal())
-        )
-      )
-    );
     // TODO: verificar o tipo de arquivo
     var sheet = new CSVReader(fileP);
     const file_colums = await sheet.getColumns();
     res.status(200).json({ session_string: fileP, file_columns: file_colums, mapping_colums: goals_field })
     return;
   } else {
-    console.log(req.body)
-    // dando erro ao pegar o body, ver isso depois
-    // const session = req.body.session; // string
-    // const mapping = req.body.mapping ? JSON.parse(req.body.mapping) : null; // converte JSON
-    // console.log(session, mapping);
-    res.status(200).json({})
+    // recebe um json com o session(nome do arquivo) um map[string -> string] com o mapeamento
+    // mapping vai ser 'coluna da planilha' -> oque dos goals
+    const { session, mapping } = req.body;
+    // inverte pois fica mais facil na hora do codigo
+    const invertedMapping = Object.fromEntries(
+      Object.entries(mapping).map(([key, value]) => [value, key])
+    );
+
+    // nome do arquivo como um identificador de sessao
+    // TODO: verificar tipo de arquivo
+    var sheet = new CSVReader(session);
+    const data = await sheet.process(); // a json from sheet
+    // linhas com as colunas certas pos mapeamento
+    var parsed_lines: any[] = []
+    
+    data.forEach((l) => {
+      const filtered = Object.fromEntries(
+        goals_field.map(k => [k, l[invertedMapping[k]] ?? ""])
+      )
+      parsed_lines.push(filtered);
+    });
+
+    
+    
+    res.status(200).json(parsed_lines);
   }
 
 });

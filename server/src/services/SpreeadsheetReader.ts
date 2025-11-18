@@ -1,6 +1,7 @@
 import readline from "readline";
 import fs from "fs";
 import { promises as fsP } from "fs";
+import csvParser from "csv-parser";
 
 export abstract class SpreadsheetReader{
   filepath: string;
@@ -11,10 +12,9 @@ export abstract class SpreadsheetReader{
     this.filepath = filepath;
   }
 
-   /** Leitura genérica do arquivo */
-   protected async loadFile(): Promise<string> {
-     // O encoding faz o readFile retornar string em vez de Buffer
-     const content = await fsP.readFile(this.filepath, { encoding: "utf-8" });
+   /** Leitura genérica do arquivo, como bytes em buffer */
+   protected async loadFile(): Promise<Buffer> {
+     const content = fsP.readFile(this.filepath);
      return content;
    }
     /** Deve ser implementado por subclasses */
@@ -25,8 +25,17 @@ export abstract class SpreadsheetReader{
 
 export class CSVReader extends SpreadsheetReader {
   async process(): Promise<any[]> {
-    throw new Error("Method not implemented yet");
+    const results: any[] = [];
+
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(this.filepath)
+        .pipe(csvParser())
+        .on("data", data => results.push(data))
+        .on("end", () => resolve(results))
+        .on("error", reject);
+    });
   }
+
   // le apenas a primeira linha, se
   getColumns(): Promise<string[]> {
     const fsStream = fs.createReadStream(this.filepath);
