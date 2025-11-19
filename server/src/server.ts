@@ -106,6 +106,17 @@ const loadDataFromFile = (): void => {
                       enrollment.addOrUpdateEvaluation(evaluation.getGoal(), evaluation.getGrade());
                     });
                   }
+                    
+                    // Load medias and attendance status if provided in the data file
+                    if (typeof enrollmentData.mediaPreFinal !== 'undefined') {
+                      enrollment.setMediaPreFinal(enrollmentData.mediaPreFinal);
+                    }
+                    if (typeof enrollmentData.mediaPosFinal !== 'undefined') {
+                      enrollment.setMediaPosFinal(enrollmentData.mediaPosFinal);
+                    }
+                    if (typeof enrollmentData.reprovadoPorFalta !== 'undefined') {
+                      enrollment.setReprovadoPorFalta(Boolean(enrollmentData.reprovadoPorFalta));
+                    }
                 } else {
                   console.error(`Student with CPF ${enrollmentData.studentCPF} not found for enrollment`);
                 }
@@ -397,6 +408,35 @@ app.get('/api/classes/:classId/enrollments', (req: Request, res: Response) => {
 
     const enrollments = classObj.getEnrollments();
     res.json(enrollments.map(e => e.toJSON()));
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// GET /api/classes/:classId/enrollments/:studentCPF/evaluation - Get the student's average and final average for a class
+app.get('/api/classes/:classId/enrollments/:studentCPF/evaluation', (req: Request, res: Response) => {
+  try {
+    const { classId, studentCPF } = req.params;
+
+    const classObj = classes.findClassById(classId);
+    if (!classObj) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    const cleanedCPF = cleanCPF(studentCPF);
+    const enrollment = classObj.findEnrollmentByStudentCPF(cleanedCPF);
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Student not enrolled in this class' });
+    }
+
+    const mediaPreFinal = enrollment.getMediaPreFinal();
+    const mediaPosFinal = enrollment.getMediaPosFinal();
+
+    res.json({
+      student: enrollment.getStudent().toJSON(),
+      average: mediaPreFinal,
+      final_average: mediaPosFinal
+    });
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
   }
