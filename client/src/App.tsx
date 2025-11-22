@@ -7,7 +7,7 @@ import StudentList from './components/StudentList';
 import StudentForm from './components/StudentForm';
 import Evaluations from './components/Evaluations';
 import Classes from './components/Classes';
-import StatusActionBadge from './components/StatusColor';
+
 import './App.css';
 
 type TabType = 'students' | 'evaluations' | 'classes';
@@ -177,18 +177,6 @@ const App: React.FC = () => {
                 </select>
               </div>
 
-              <StatusActionBadge
-                statusData={{
-                  cor: 'Verde',
-                  status: 'Situação Geral OK',
-                  motivos: [
-                    { descricao: 'Frequência', detalhe: 'Maior que 75%' },
-                    { descricao: 'Notas', detalhe: 'Acima da média' }
-                  ],
-                  observacao: 'Indicador geral da turma.'
-                }}
-              />
-
               <StudentForm
                 onStudentAdded={handleStudentAdded}
                 onStudentUpdated={handleStudentUpdated}
@@ -204,6 +192,7 @@ const App: React.FC = () => {
                 onEditStudent={handleEditClick}
                 onError={handleError}
                 loading={loading}
+                selectedClass={selectedClass} // 🔥 NECESSÁRIO PARA A SUA FEATURE
               />
             </>
           )}
