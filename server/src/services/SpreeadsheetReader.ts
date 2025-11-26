@@ -2,6 +2,7 @@ import readline from "readline";
 import fs from "fs";
 import { promises as fsP } from "fs";
 import csvParser from "csv-parser";
+import * as XLSX from "xlsx";
 
 export abstract class SpreadsheetReader{
   filepath: string;
@@ -58,9 +59,23 @@ export class CSVReader extends SpreadsheetReader {
 
 export class XLSXReader extends SpreadsheetReader {
   async process(): Promise<any[]> {
-    throw new Error("Method not implemented yet");
+    const workbook = XLSX.readFile(this.filepath);
+    const sheetName1 = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName1];
+    const data = XLSX.utils.sheet_to_json(worksheet);
+    return data;
   }
-  getColumns(): Promise<string[]> {
-    throw new Error("Not implemented");
+
+  async getColumns(): Promise<string[]> {
+    const workbook = XLSX.readFile(this.filepath);
+    const sheetName1 = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName1];
+    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+    
+    if (data.length === 0) {
+      return [];
+    }
+    
+    return data[0].map((col: any) => String(col).trim());
   }
 }
