@@ -1,21 +1,21 @@
 export type Grade = 'MANA' | 'MPA' | 'MA';
 type Meta = string;
 
-export class DefMedia {
-    private readonly conceito_peso: Map<Grade, number>; // MA, MPA, MANA
-    private readonly meta_peso: Map<Meta, number>; // "Gerência de Configuração", "Gerência de Projeto", etc.
-    private readonly somaPesosMeta: number;
+export class EspecificacaoDoCalculoDaMedia {
+    private readonly pesosDosConceitos: Map<Grade, number>; // MA, MPA, MANA
+    private readonly pesosDasMetas: Map<Meta, number>; // "Gerência de Configuração", "Gerência de Projeto", etc.
+    private readonly somaDosPesosDasMetas: number;
 
-    constructor(conceitoPesoInicial: Map<Grade, number>, metaPesoInicial: Map<Meta, number>) 
+    constructor(pesosIniciasDosConceitos: Map<Grade, number>, pesosIniciaisDasMetas: Map<Meta, number>) 
     {
         // congela os maps depois de criados
-        this.conceito_peso = new Map(conceitoPesoInicial);
-        this.meta_peso = new Map(metaPesoInicial);
+        this.pesosDosConceitos = new Map(pesosIniciasDosConceitos);
+        this.pesosDasMetas = new Map(pesosIniciaisDasMetas);
 
         // pré-computa a soma dos pesos das metas (denominador)
-        this.somaPesosMeta = Array.from(metaPesoInicial).reduce((acc, v) => acc + v[1], 0);
+        this.somaDosPesosDasMetas = Array.from(pesosIniciaisDasMetas).reduce((acc, v) => acc + v[1], 0);
 
-        if (this.somaPesosMeta === 0)
+        if (this.somaDosPesosDasMetas === 0)
             throw new Error("A soma dos pesos das metas não pode ser zero.");
     }
 
@@ -24,18 +24,18 @@ export class DefMedia {
      * @param metaNotas Map com as metas e as notas alcançadas.
      * @returns A média ponderada como número.
     */
-    calc(metaNotas: Map<Meta, Grade>): number 
+    calc(notasDasMetas: Map<Meta, Grade>): number 
     {
         let somaTotal = 0;
 
-        for (const [meta, conceito] of metaNotas.entries()) 
+        for (const [meta, conceito] of notasDasMetas.entries()) 
         {
-            const pesoConceito = this.conceito_peso.get(conceito)!;
-            const pesoMeta = this.meta_peso.get(meta)!;
-            somaTotal += pesoMeta * pesoConceito;
+            const pesoDoConceito = this.pesosDosConceitos.get(conceito)!;
+            const pesoDaMeta = this.pesosDasMetas.get(meta)!;
+            somaTotal += pesoDaMeta * pesoDoConceito;
         }
 
-        return somaTotal / this.somaPesosMeta;
+        return somaTotal / this.somaDosPesosDasMetas;
     }
 
     // Exporta dados apenas em formato serializável
@@ -45,13 +45,13 @@ export class DefMedia {
             Object.fromEntries(Array.from(map.entries()) as [any, number][]);
 
         return {
-            conceitoPeso: mapToObject(this.conceito_peso),
-            metaPeso: mapToObject(this.meta_peso)
+            pesosDosConceitos: mapToObject(this.pesosDosConceitos),
+            pesosDasMetas: mapToObject(this.pesosDasMetas)
         };
     }
 
     // Reconstrói uma instância a partir de dados serializados
-    static fromJSON(data: any): DefMedia {
+    static fromJSON(data: any): EspecificacaoDoCalculoDaMedia {
         const normalize = (x: any): Map<string, number> => {
             if (!x) return new Map();
             // já é objeto { key: value, ... }
@@ -71,9 +71,9 @@ export class DefMedia {
             return new Map();
         };
     
-        const conceitoMap = normalize(data.conceitoPeso);
-        const metaMap = normalize(data.metaPeso);
+        const pesoDosConceitos = normalize(data.pesosDosConceitos);
+        const pesoDasMetas = normalize(data.pesosDasMetas);
     
-        return new DefMedia(conceitoMap as Map<any, number>, metaMap as Map<any, number>);
+        return new EspecificacaoDoCalculoDaMedia(pesoDosConceitos as Map<any, number>, pesoDasMetas as Map<any, number>);
     }
 }
