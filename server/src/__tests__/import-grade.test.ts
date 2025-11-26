@@ -47,12 +47,8 @@ describe('Grade Import API - /api/classes/gradeImport/:classId', () => {
       studentSet.addStudent(student);
       const enrollment = testClass.addEnrollment(student);
       
-      // Add initial evaluations for the goals
-      const goals = ['Requirements', 'Configuration Management', 'Project Management', 
-                     'Design', 'Refactoring', 'Tests'];
-      goals.forEach(goal => {
-        enrollment.addOrUpdateEvaluation(goal, 'MANA');
-      });
+      // Não adiciona avaliações iniciais para permitir que o CSV importe as notas
+      // A lógica do sistema só atualiza se a nota for undefined (não existir)
     });
   });
 
@@ -175,14 +171,14 @@ describe('Grade Import API - /api/classes/gradeImport/:classId', () => {
       // Validate specific known data from import_grade_1.csv
       const studentOneLine = response.body.find((line: any) => line.cpf === '11111111111');
       expect(studentOneLine).toBeDefined();
-      expect(studentOneLine.Requirements).toBe('MPA');
+      expect(studentOneLine.Requirements).toBe('MA');
       expect(studentOneLine['Configuration Management']).toBe('MA');
       
       const studentTwoLine = response.body.find((line: any) => line.cpf === '22222222222');
       expect(studentTwoLine).toBeDefined();
       expect(studentTwoLine.Requirements).toBe('MA');
-      // Empty cells should return empty string
-      expect(studentTwoLine['Configuration Management']).toBe('');
+      // All cells have MA in current CSV
+      expect(studentTwoLine['Configuration Management']).toBe('MA');
     });
 
     test('should update enrollments with parsed grades', async () => {
@@ -209,7 +205,8 @@ describe('Grade Import API - /api/classes/gradeImport/:classId', () => {
       if (enrollment) {
         const reqEval = enrollment.getEvaluations().find(e => e.getGoal() === 'Requirements');
         expect(reqEval).toBeDefined();
-        expect(reqEval?.getGrade()).toBe('MPA');
+        // Should be MA from CSV import (was undefined before)
+        expect(reqEval?.getGrade()).toBe('MA');
       }
     });
 
@@ -309,8 +306,8 @@ describe('Grade Import API - /api/classes/gradeImport/:classId', () => {
       expect(response.body.error).toMatch(/Class not Found/i);
     });
 
-    test('should handle empty cells in CSV by removing evaluations', async () => {
-      // import_grade_1.csv has empty cells for student 22222222222
+    test('should update all grades from CSV without losing data', async () => {
+      // import_grade_1.csv has all students with MA grades
       const filePath = path.resolve(__dirname, './tests_files/import_grade_1.csv');
       
       // Upload file
@@ -340,19 +337,181 @@ describe('Grade Import API - /api/classes/gradeImport/:classId', () => {
         })
         .expect(200);
 
-      // Verify that empty cells resulted in evaluation removal
+      // Verify that grades are updated from CSV (no empty cells in current test file)
       const enrollment = testClass.findEnrollmentByStudentCPF('22222222222');
       expect(enrollment).toBeDefined();
       
       if (enrollment) {
-        // Student 22222222222 has only Requirements = MA, rest are empty
+        // Student 22222222222 has all grades = MA from CSV import
         const reqEval = enrollment.getEvaluations().find(e => e.getGoal() === 'Requirements');
         expect(reqEval).toBeDefined();
         expect(reqEval?.getGrade()).toBe('MA');
 
-        // Configuration Management should not exist (was empty)
+        // Configuration Management should also be MA from CSV
         const configEval = enrollment.getEvaluations().find(e => e.getGoal() === 'Configuration Management');
-        expect(configEval).toBeUndefined();
+        expect(configEval).toBeDefined();
+        expect(configEval?.getGrade()).toBe('MA');
+      }
+    });
+
+    test('should NOT overwrite existing grades when importing CSV', async () => {
+      // First, add initial grades to students
+      const student1 = testClass.findEnrollmentByStudentCPF('11111111111');
+      const student2 = testClass.findEnrollmentByStudentCPF('22222222222');
+      
+      if (student1 && student2) {
+        // Set initial grades that differ from CSV
+        student1.addOrUpdateEvaluation('Requirements', 'MPA');
+        student1.addOrUpdateEvaluation('Design', 'MANA');
+        student2.addOrUpdateEvaluation('Configuration Management', 'MPA');
+        student2.addOrUpdateEvaluation('Tests', 'MANA');
+      }
+
+      // Now import CSV (all values are MA)
+      const filePath = path.resolve(__dirname, './tests_files/import_grade_1.csv');
+      const uploadResponse = await request(app)
+        .post(`/api/classes/gradeImport/${classId}`)
+        .attach('file', filePath)
+        .expect(200);
+
+      const sessionString = uploadResponse.body.session_string;
+      const fileColumns = uploadResponse.body.file_columns;
+      const mappingColumns = uploadResponse.body.mapping_colums;
+
+      const mapping: Record<string, string> = {};
+      fileColumns.forEach((col: string) => {
+        if (mappingColumns.includes(col)) {
+          mapping[col] = col;
+        }
+      });
+
+      await request(app)
+        .post(`/api/classes/gradeImport/${classId}`)
+        .send({
+          session_string: sessionString,
+          mapping: mapping
+        })
+        .expect(200);
+
+      // Verify that existing grades were NOT overwritten
+      const enrollment1 = testClass.findEnrollmentByStudentCPF('11111111111');
+      expect(enrollment1).toBeDefined();
+      
+      if (enrollment1) {
+        // Requirements should still be MPA (not overwritten by MA from CSV)
+        const reqEval = enrollment1.getEvaluations().find(e => e.getGoal() === 'Requirements');
+        expect(reqEval).toBeDefined();
+        expect(reqEval?.getGrade()).toBe('MPA');
+
+        // Design should still be MANA (not overwritten by MA from CSV)
+        const designEval = enrollment1.getEvaluations().find(e => e.getGoal() === 'Design');
+        expect(designEval).toBeDefined();
+        expect(designEval?.getGrade()).toBe('MANA');
+
+        // But other goals that were undefined should be imported as MA
+        const pmEval = enrollment1.getEvaluations().find(e => e.getGoal() === 'Project Management');
+        expect(pmEval).toBeDefined();
+        expect(pmEval?.getGrade()).toBe('MA');
+      }
+
+      const enrollment2 = testClass.findEnrollmentByStudentCPF('22222222222');
+      expect(enrollment2).toBeDefined();
+      
+      if (enrollment2) {
+        // Configuration Management should still be MPA
+        const configEval = enrollment2.getEvaluations().find(e => e.getGoal() === 'Configuration Management');
+        expect(configEval).toBeDefined();
+        expect(configEval?.getGrade()).toBe('MPA');
+
+        // Tests should still be MANA
+        const testsEval = enrollment2.getEvaluations().find(e => e.getGoal() === 'Tests');
+        expect(testsEval).toBeDefined();
+        expect(testsEval?.getGrade()).toBe('MANA');
+      }
+    });
+
+    test('should handle CSV with empty cells without removing existing grades', async () => {
+      // Create a CSV with some empty cells
+      const testFilePath = path.resolve(__dirname, './tests_files/import_grade_temp_empty.csv');
+      const csvContent = 'cpf,Requirements,Configuration Management,Design\n11111111111,MA,,MPA\n22222222222,,MA,\n';
+      fs.writeFileSync(testFilePath, csvContent);
+
+      // Add initial grades to students
+      const student1 = testClass.findEnrollmentByStudentCPF('11111111111');
+      const student2 = testClass.findEnrollmentByStudentCPF('22222222222');
+      
+      if (student1 && student2) {
+        student1.addOrUpdateEvaluation('Requirements', 'MANA');
+        student1.addOrUpdateEvaluation('Configuration Management', 'MANA');
+        student1.addOrUpdateEvaluation('Design', 'MANA');
+        
+        student2.addOrUpdateEvaluation('Requirements', 'MPA');
+        student2.addOrUpdateEvaluation('Configuration Management', 'MPA');
+        student2.addOrUpdateEvaluation('Design', 'MPA');
+      }
+
+      try {
+        // Upload and process
+        const uploadResponse = await request(app)
+          .post(`/api/classes/gradeImport/${classId}`)
+          .attach('file', testFilePath)
+          .expect(200);
+
+        const sessionString = uploadResponse.body.session_string;
+        const fileColumns = uploadResponse.body.file_columns;
+        const mappingColumns = uploadResponse.body.mapping_colums;
+
+        const mapping: Record<string, string> = {};
+        fileColumns.forEach((col: string) => {
+          if (mappingColumns.includes(col)) {
+            mapping[col] = col;
+          }
+        });
+
+        await request(app)
+          .post(`/api/classes/gradeImport/${classId}`)
+          .send({
+            session_string: sessionString,
+            mapping: mapping
+          })
+          .expect(200);
+
+        // Verify student 1
+        const enrollment1 = testClass.findEnrollmentByStudentCPF('11111111111');
+        if (enrollment1) {
+          // Requirements: MANA (existing) should NOT be overwritten because CSV has MA and grade exists
+          const reqEval = enrollment1.getEvaluations().find(e => e.getGoal() === 'Requirements');
+          expect(reqEval?.getGrade()).toBe('MANA');
+
+          // Configuration Management: empty in CSV, should keep existing MANA
+          const configEval = enrollment1.getEvaluations().find(e => e.getGoal() === 'Configuration Management');
+          expect(configEval?.getGrade()).toBe('MANA');
+
+          // Design: MANA (existing) should NOT be overwritten by MPA from CSV
+          const designEval = enrollment1.getEvaluations().find(e => e.getGoal() === 'Design');
+          expect(designEval?.getGrade()).toBe('MANA');
+        }
+
+        // Verify student 2
+        const enrollment2 = testClass.findEnrollmentByStudentCPF('22222222222');
+        if (enrollment2) {
+          // Requirements: empty in CSV, should keep existing MPA
+          const reqEval = enrollment2.getEvaluations().find(e => e.getGoal() === 'Requirements');
+          expect(reqEval?.getGrade()).toBe('MPA');
+
+          // Configuration Management: MPA (existing) should NOT be overwritten by MA from CSV
+          const configEval = enrollment2.getEvaluations().find(e => e.getGoal() === 'Configuration Management');
+          expect(configEval?.getGrade()).toBe('MPA');
+
+          // Design: empty in CSV, should keep existing MPA
+          const designEval = enrollment2.getEvaluations().find(e => e.getGoal() === 'Design');
+          expect(designEval?.getGrade()).toBe('MPA');
+        }
+      } finally {
+        // Clean up
+        if (fs.existsSync(testFilePath)) {
+          fs.unlinkSync(testFilePath);
+        }
       }
     });
   });
