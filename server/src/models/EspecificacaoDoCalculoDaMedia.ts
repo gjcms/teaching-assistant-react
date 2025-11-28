@@ -77,3 +77,21 @@ export class EspecificacaoDoCalculoDaMedia {
         return new EspecificacaoDoCalculoDaMedia(pesoDosConceitos as Map<any, number>, pesoDasMetas as Map<any, number>);
     }
 }
+
+
+const DEFAULT_PESOS_DOS_CONCEITOS = new Map<Grade, number>([
+  ['MA', 10],
+  ['MPA', 7],
+  ['MANA', 0],
+]);
+
+const DEFAULT_PESOS_DAS_METAS = new Map<Meta, number>([
+  ['Gerência de Configuração', 1],
+  ['Gerência de Projeto', 1],
+  ['Qualidade de Software', 1],
+]);
+
+const DEFAULT_ESPECIFICACAO_DO_CALCULO_DA_MEDIA = new EspecificacaoDoCalculoDaMedia(
+  DEFAULT_PESOS_DOS_CONCEITOS,
+  DEFAULT_PESOS_DAS_METAS
+);
