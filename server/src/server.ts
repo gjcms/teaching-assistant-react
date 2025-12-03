@@ -8,7 +8,7 @@ import { Class } from './models/Class';
 import { Report } from './models/Report';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CSVReader } from './services/SpreeadsheetReader';
+import { CSVReader, XLSXReader } from './services/SpreeadsheetReader';
 import { EspecificacaoDoCalculoDaMedia, DEFAULT_ESPECIFICACAO_DO_CALCULO_DA_MEDIA } from './models/EspecificacaoDoCalculoDaMedia';
 
 // usado para ler arquivos em POST
@@ -27,6 +27,8 @@ app.use(express.json());
 // In-memory storage with file persistence
 const studentSet = new StudentSet();
 const classes = new Classes();
+// map temporary session_string (uploaded.path) to metadata so we can recover original extension
+const uploadSessions: Map<string, { ext: string; original: string }> = new Map();
 const dataFile = path.resolve('./data/app-data.json');
 
 // Persistence functions
@@ -493,108 +495,89 @@ app.put('/api/classes/:classId/enrollments/:studentCPF/evaluation', (req: Reques
         }
 });
 
-// POST api/classes/gradeImport/:classId, usado na feature de importacao de grades
-// Vai ser usado em 2 fluxos(poderia ter divido em 2 endpoints mas preferi deixar em apenas 1)
-// [Front] Upload → [Back] lê só o cabeçalho e retorna colunas da planilha e os goals da 'classId'
-// [Front] Mapeia colunas da planilha para os goals → [Back] faz parse completo (stream)
+// POST api/classes/gradeImport/:classId
+// Endpoint with two-step flow used by the frontend when importing grades:
+// 1) Upload a file -> backend reads only the header and returns `file_columns` + `session_string`.
+// 2) Front maps file columns to class goals and sends `session_string` + `mapping` -> backend parses
+//    the whole file and updates enrollments accordingly.
 app.post('/api/classes/gradeImport/:classId', upload_dir.single('file'), async (req: express.Request, res: express.Response) => {
-        const classId = req.params.classId;
-        const classObj = classes.findClassById(classId);
-        if (!classObj) {
-                return res.status(404).json({ error: "Class not Found" });
-                return;
-        }
+  const classId = req.params.classId;
+  const classObj = classes.findClassById(classId);
+  if (!classObj) return res.status(404).json({ error: 'Class not Found' });
 
-        const enroll = classObj.getEnrollments();
-        if (!enroll) {
-                res.status(404).json({ error: "Enrolments not found" });
-                return;
-        }
-        // pegar os goals + cpf, de forma condizente com os dados e nao algo hardcoded
-        // var goals_field = Array.from(
-        //   new Set(
-        //     enroll.flatMap(enrollment =>
-        //       enrollment.getEvaluations().map(eval_ => eval_.getGoal())
-        //     )
-        //   )
-        // );
-        // pegar de forma direta dos EVALUATION_GOALS, pois nao esta dinamico nesse ponto
-        // goals_field.push("cpf");
-        var goals_field = ["cpf", ...Array.from(EVALUATION_GOALS)];
+  const enrollments = classObj.getEnrollments();
+  if (!enrollments) return res.status(404).json({ error: 'Enrollments not found' });
 
-        // 2 tipos de resposta, quando manda arquivo e quando nao manda, quando manda:
-        // recebe um .csv ou .xlsl
-        // res.send({ status: 200, session_string: fileP, file_columns: file_cols, mapping_colums: field_cols });
-        // fileP e como se fosse um sessionID, sem mexer com sessao necessariamente
-        // file_columns e o nome das colunas do arquivo
-        // mapping_colums e o nome das colunas que espera receber, para ser mapeado
-        // o outro tipo de resposta e apenas um res.send({status: 200}), que ja recebe os dados
-        // const fileP = req.file?.path ?? "";
-        const fileP = (req as any).file?.path ?? "";
-        if (fileP) {
-                // Validar tipo de arquivo
-                const file = (req as any).file;
-                const allowedMimeTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-                const allowedExtensions = ['.csv', '.xlsx', '.xls'];
-                const fileExtension = file.originalname ? file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.')) : '';
-                
-                if (!allowedMimeTypes.includes(file.mimetype) && !allowedExtensions.includes(fileExtension)) {
-                        return res.status(400).json({ error: "Tipo de arquivo inválido. Apenas arquivos CSV ou XLSX são permitidos." });
+  const goals_field = ['cpf', ...Array.from(EVALUATION_GOALS)];
+
+  // STEP 1: if a file was uploaded, return its columns so frontend can map them to goals
+  // - `session_string` is the temp path (multer destination) used as an identifier
+  const uploaded = (req as any).file;
+  // If file uploaded => return session + file columns for mapping
+  if (uploaded?.path) {
+        // validate file type for csv and excel
+    const allowedMimeTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    const allowedExtensions = ['.csv', '.xlsx', '.xls'];
+    const original = uploaded.originalname || '';
+    const ext = path.extname(original).toLowerCase();
+
+                // validate file type by mimetype OR extension
+                if (!allowedMimeTypes.includes(uploaded.mimetype) && !allowedExtensions.includes(ext)) {
+                        return res.status(400).json({ error: 'Invalid file type. Only CSV or XLSX files are allowed.' });
                 }
-                
-                var sheet = new CSVReader(fileP);
-                const file_colums = await sheet.getColumns();
-                res.status(200).json({ session_string: fileP, file_columns: file_colums, mapping_colums: goals_field })
-                return;
-        } else {
-                // recebe um json com o session(nome do arquivo) um map[string -> string] com o mapeamento
-                // mapping vai ser 'coluna da planilha' -> oque dos goals
-                const { session_string, mapping } = req.body;
-                // inverte pois fica mais facil na hora do codigo
-                const invertedMapping = Object.fromEntries(
-                        Object.entries(mapping).map(([key, value]) => [value, key])
-                );
 
-                // nome do arquivo como um identificador de sessao
-                // TODO: verificar tipo de arquivo
-                var sheet = new CSVReader(session_string);
-                const data = await sheet.process(); // a json from sheet
-                // linhas com as colunas certas pos mapeamento
-                var parsed_lines: any[] = []
-                // alguma coisa ta vazia, na teoria esta pegando
-                data.forEach((l) => {
-                        const filtered = Object.fromEntries(
-                                goals_field.map(k => [k, l[invertedMapping[k]] ?? ""])
-                        )
-                        parsed_lines.push(filtered);
-                });
+                // choose appropriate reader based on file extension
+                const Reader = ext === '.xlsx' || ext === '.xls' ? XLSXReader : CSVReader;
+                const sheet = new Reader(uploaded.path);
+                const file_columns = await sheet.getColumns();
+                // store session metadata so later requests can detect original extension
+                uploadSessions.set(uploaded.path, { ext, original });
+                // return the temp path (session_string) + header columns and expected mapping fields
+                return res.status(200).json({ session_string: uploaded.path, file_columns, mapping_colums: goals_field });
+  }
 
-                for (const l of parsed_lines) {
-                        const cleanedcpf = cleanCPF(l['cpf']);
-                        const enrollment = classObj.findEnrollmentByStudentCPF(cleanedcpf);
-                        if (!enrollment) {
-                                return res.status(404).json({ error: `Student, ${cleanedcpf}, not enrolled in this class` });
+        // STEP 2: mapping + processing
+        // Expect JSON body: { session_string: string, mapping: { fileColumnName -> goalName } }
+        const { session_string, mapping } = req.body ?? {};
+        if (!session_string || !mapping) return res.status(400).json({ error: 'session_string and mapping are required' });
+
+        // invert mapping so we can lookup file column by goal: { goal -> fileColumn }
+        const invertedMapping = Object.fromEntries(Object.entries(mapping).map(([k, v]) => [v, k]));
+        // try to recover original extension from uploadSessions (multer's uploaded.path usually has no extension)
+        const meta = uploadSessions.get(session_string);
+        const sessionExt = (meta?.ext) ? meta.ext : path.extname(session_string).toLowerCase();
+        const ReaderForSession = sessionExt === '.xlsx' || sessionExt === '.xls' ? XLSXReader : CSVReader;
+        const sheet = new ReaderForSession(session_string);
+        const data = await sheet.process();
+
+        // build parsed lines with the expected goals order (including 'cpf')
+        const parsed_lines = data.map((row: any) => Object.fromEntries(goals_field.map(k => [k, row[invertedMapping[k]] ?? ''])));
+
+        // for each parsed line, find enrollment by CPF and add evaluation only when it's missing
+        for (const line of parsed_lines) {
+                const cleanedcpf = cleanCPF(line['cpf']);
+                const enrollment = classObj.findEnrollmentByStudentCPF(cleanedcpf);
+                if (!enrollment) return res.status(404).json({ error: `Student, ${cleanedcpf}, not enrolled in this class` });
+
+                for (const [goal, grade] of Object.entries(line).filter(([k]) => k !== 'cpf')) {
+                        const gradeStr = String(grade);
+                        if (gradeStr === '') continue; // ignore empty cells
+                        if (!['MANA', 'MPA', 'MA'].includes(gradeStr)) {
+                                return res.status(400).json({ error: `Invalid grade for ${goal} on CPF=${cleanedcpf}. Must be MANA, MPA, or MA` });
                         }
-
-                        // atualiza o grade exatamente do jeito que esta na planilha, onde esta vazio
-                        // TODO: Saber se quando esta vazio ele nao deve atualizar
-                        for (const [goal, grade] of Object.entries(l).filter(([k]) => k !== 'cpf')) {
-                                const gradeStr = String(grade);
-                                if (gradeStr === '') {
-                                        // nao faz nada
-                                        // enrollment.removeEvaluation(goal);
-                                } else if (!['MANA', 'MPA', 'MA'].includes(gradeStr)) {
-                                        return res.status(400).json({ error: `Invalid grade, for ${goal} on CPF=${cleanedcpf}. Must be MANA, MPA, or MA, is '${gradeStr}'` });
-                                } else if (enrollment.getEvaluationForGoal(goal) === undefined) {
-                                        // atualiza apenas se ele for vzaio no sistema
-                                        enrollment.addOrUpdateEvaluation(goal, gradeStr as 'MANA' | 'MPA' | 'MA');
-                                }
+                        // only write if system doesn't have an evaluation for that goal yet
+                        if (enrollment.getEvaluationForGoal(goal) === undefined) {
+                                enrollment.addOrUpdateEvaluation(goal, gradeStr as 'MANA' | 'MPA' | 'MA');
                         }
                 }
-                triggerSave();
-                res.status(200).json(parsed_lines);
         }
-
+        // persintence
+        triggerSave();
+        return res.status(200).json(parsed_lines);
 });
 
 // GET /api/classes/:classId/report - Generate statistics report for a class
