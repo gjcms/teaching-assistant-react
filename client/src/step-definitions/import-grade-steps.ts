@@ -36,7 +36,7 @@ After({ tags: '@import-grade' }, async function () {
 });
 
 Given('estou na página de Avaliações', async function () {
-  console.log('Iniciando navegação para página de Avaliações...');
+  // console.log('Iniciando navegação para página de Avaliações...');
   await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
   
   // Procurar pelo botão/link de Evaluations
@@ -47,7 +47,7 @@ Given('estou na página de Avaliações', async function () {
   for (const button of buttons) {
     const text = await page.evaluate(el => el.textContent, button);
     if (text?.includes('Evaluations') || text?.includes('Avaliações')) {
-      console.log('Clicando no botão Evaluations...');
+      // console.log('Clicando no botão Evaluations...');
       await button.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
       found = true;
@@ -56,7 +56,7 @@ Given('estou na página de Avaliações', async function () {
   }
   
   if (!found) {
-    console.log('Botão Evaluations não encontrado, pode já estar na página');
+    // console.log('Botão Evaluations não encontrado, pode já estar na página');
   }
   
   // Verificar que estamos na página de avaliações
@@ -64,13 +64,13 @@ Given('estou na página de Avaliações', async function () {
   const heading = await page.$eval('h3', el => el.textContent);
   expect(heading).toContain('Evaluations');
   
-  console.log('✓ Navegado para página de Avaliações');
+  // console.log('✓ Navegado para página de Avaliações');
 });
 
 Given('selecionei a turma {string}', async function (className: string) {
   testClassId = className;
   
-  console.log(`Selecionando turma: ${className}...`);
+  // console.log(`Selecionando turma: ${className}...`);
   
   // Esperar pelo dropdown de seleção de turma
   await page.waitForSelector('#classSelect', { timeout: 10000 });
@@ -81,11 +81,11 @@ Given('selecionei a turma {string}', async function (className: string) {
   // Esperar os dados carregarem
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  console.log(`✓ Turma selecionada: ${className}`);
+  // console.log(`✓ Turma selecionada: ${className}`);
 });
 
 When('seleciono um arquivo CSV {string} para upload', async function (fileName: string) {
-  console.log(`Selecionando arquivo: ${fileName}...`);
+  // console.log(`Selecionando arquivo: ${fileName}...`);
   
   // Encontrar o input de arquivo
   const fileInputSelector = 'input[type="file"]';
@@ -93,13 +93,13 @@ When('seleciono um arquivo CSV {string} para upload', async function (fileName: 
   
   // Caminho absoluto para o arquivo de teste
   const testFilePath = path.resolve(__dirname, '../../../server/src/__tests__/tests_files', fileName);
-  console.log(`Caminho do arquivo: ${testFilePath}`);
+  // console.log(`Caminho do arquivo: ${testFilePath}`);
   
   // Upload do arquivo
   const fileInput = await page.$(fileInputSelector);
   if (fileInput) {
     await fileInput.uploadFile(testFilePath);
-    console.log(`✓ Arquivo selecionado: ${fileName}`);
+    // console.log(`✓ Arquivo selecionado: ${fileName}`);
     
     // Esperar o arquivo ser processado
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -116,7 +116,7 @@ When('clico no botão continuar', async function () {
     const buttonText = await page.evaluate(el => el.textContent, button);
     if (buttonText?.includes('Continuar')) {
       await button.click();
-      console.log('Clicado no botão continuar');
+      // console.log('Clicado no botão continuar');
       
       // Esperar a etapa de mapeamento carregar
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -143,7 +143,7 @@ Then('devo ver a interface de mapeamento de colunas', async function () {
   }
   
   expect(foundMappingHeading).toBe(true);
-  console.log('Interface de mapeamento de colunas está visível');
+  // console.log('Interface de mapeamento de colunas está visível');
 });
 
 Then('devo ver as colunas do arquivo CSV carregado', async function () {
@@ -151,7 +151,7 @@ Then('devo ver as colunas do arquivo CSV carregado', async function () {
   const columnHeaders = await page.$$('h4');
   expect(columnHeaders.length).toBeGreaterThan(0);
   
-  console.log(`Encontradas ${columnHeaders.length} colunas do arquivo`);
+  // console.log(`Encontradas ${columnHeaders.length} colunas do arquivo`);
 });
 
 Then('devo ver as colunas de metas para mapeamento', async function () {
@@ -168,7 +168,7 @@ Then('devo ver as colunas de metas para mapeamento', async function () {
   // Deve ter pelo menos a opção vazia e algumas opções de metas
   expect(options.length).toBeGreaterThan(1);
   
-  console.log(`Encontrados ${selectElements.length} seletores de mapeamento com opções`);
+  // console.log(`Encontrados ${selectElements.length} seletores de mapeamento com opções`);
 });
 
 Given('fiz upload de um arquivo CSV com dados válidos', async function () {
@@ -194,7 +194,7 @@ Given('fiz upload de um arquivo CSV com dados válidos', async function () {
     }
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    console.log('Arquivo CSV com dados válidos carregado');
+    // console.log('Arquivo CSV com dados válidos carregado');
   }
 });
 
@@ -206,7 +206,7 @@ Given('estou na etapa de mapeamento de colunas', async function () {
     expect(headingText).toContain('Colunas do Arquivo');
   }
   
-  console.log('Na etapa de mapeamento de colunas');
+  // console.log('Na etapa de mapeamento de colunas');
 });
 
 When('mapeio as colunas corretamente:', async function (dataTable: DataTable) {
@@ -251,7 +251,7 @@ When('mapeio as colunas corretamente:', async function (dataTable: DataTable) {
           );
           
           if (selectValue) {
-            console.log(`Mapeado "${fileColumn}" -> "${goalColumn}"`);
+            // console.log(`Mapeado "${fileColumn}" -> "${goalColumn}"`);
           } else {
             throw new Error(`Não foi possível mapear "${fileColumn}" para "${goalColumn}"`);
           }
@@ -273,7 +273,7 @@ When('clico no botão enviar mapeamento', async function () {
     const buttonText = await page.evaluate(el => el.textContent, button);
     if (buttonText?.trim() === 'Enviar') {
       await button.click();
-      console.log('Clicado no botão enviar mapeamento');
+      // console.log('Clicado no botão enviar mapeamento');
       
       // Esperar a importação completar
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -289,11 +289,8 @@ Then('as notas devem ser importadas com sucesso', async function () {
   // Vamos esperar um pouco mais e verificar qual tela está sendo exibida
   await new Promise(resolve => setTimeout(resolve, 3000));
   
-  // Debug: ver todos os headings presentes na página
   const allH1 = await page.$$eval('h1', els => els.map(el => el.textContent));
   const allH2 = await page.$$eval('h2', els => els.map(el => el.textContent));
-  console.log('H1 elements:', allH1);
-  console.log('H2 elements:', allH2);
   
   // Verificar se voltou para a tela de upload (step 1) - isso indica sucesso
   const hasUploadHeading = allH2.some(text => text?.includes('Importação de Notas Por Planilha'));
@@ -306,7 +303,6 @@ Then('as notas devem ser importadas com sucesso', async function () {
   const isInValidScreen = hasUploadHeading || hasMappingH1 || hasMappingH2;
   
   expect(isInValidScreen).toBe(true);
-  console.log('✓ Notas importadas com sucesso');
 });
 
 Then('devo ver as avaliações atualizadas na tabela', async function () {
@@ -317,15 +313,15 @@ Then('devo ver as avaliações atualizadas na tabela', async function () {
   const tables = await page.$$('table');
   
   if (tables.length > 0) {
-    console.log('Tabela de avaliações encontrada com dados atualizados');
+    // console.log('Tabela de avaliações encontrada com dados atualizados');
     
     // Verificar que existem linhas na tabela
     const rows = await page.$$('table tbody tr');
     expect(rows.length).toBeGreaterThan(0);
     
-    console.log(`Tabela de avaliações tem ${rows.length} linhas de alunos`);
+    // console.log(`Tabela de avaliações tem ${rows.length} linhas de alunos`);
   } else {
-    console.log('Exibição de avaliações verificada');
+    // console.log('Exibição de avaliações verificada');
   }
 });
 
@@ -352,7 +348,7 @@ Given('fiz upload de um arquivo CSV', async function () {
     }
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    console.log('Arquivo CSV carregado');
+    // console.log('Arquivo CSV carregado');
   }
 });
 
@@ -364,7 +360,7 @@ When('clico no botão voltar', async function () {
     const buttonText = await page.evaluate(el => el.textContent, button);
     if (buttonText?.trim() === 'Voltar') {
       await button.click();
-      console.log('Clicado no botão voltar');
+      // console.log('Clicado no botão voltar');
       
       // Esperar a transição
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -404,7 +400,7 @@ Then('devo retornar para a etapa de upload de arquivo', async function () {
   }
   expect(hasContinueButton).toBe(true);
   
-  console.log('Retornado para a etapa de upload de arquivo');
+  // console.log('Retornado para a etapa de upload de arquivo');
 });
 
 Then('o mapeamento deve ser limpo', async function () {
@@ -417,5 +413,5 @@ Then('o mapeamento deve ser limpo', async function () {
     expect(text).not.toContain('Colunas do Arquivo');
   }
   
-  console.log('Mapeamento foi limpo');
+  // console.log('Mapeamento foi limpo');
 });
