@@ -17,7 +17,7 @@ export const getStudentStatusColor = (
   if (mediaTurma > 0) {
     const diffPercent = ((mediaTurma - mediaAluno) / mediaTurma) * 100;
 
-    if (diffPercent <= 10) {
+    if (Number(diffPercent.toFixed(2)) <= 10) {
       return 'yellow';
     }
   }

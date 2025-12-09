@@ -622,29 +622,20 @@ app.get('/api/classes/:classId/report', (req: Request, res: Response) => {
         }
 });
 
-// GET /api/classes/:classId/students-status - Retorna cor do aluno com base na situacao academica
+// GET /api/classes/:classId/students-status - Get status color for each student in a class
 app.get('/api/classes/:classId/students-status', (req: Request, res: Response) => {
   try {
     const { classId } = req.params;
     const classObj = classes.findClassById(classId);
-    
+
     if (!classObj) {
       return res.status(404).json({ error: 'Class not found' });
     }
-    
+
     const enrollments = classObj.getEnrollments();
-    const spec = classObj.getEspecificacaoDoCalculoDaMedia();
 
-    //Calcular a média atual de cada aluno dinamicamente (enquanto n há feature)
     const studentData = enrollments.map(enrollment => {
-      const evaluations = enrollment.getEvaluations();
-      
-      const notasDasMetas = new Map<string, Grade>();
-      evaluations.forEach(ev => {
-        notasDasMetas.set(ev.getGoal(), ev.getGrade());
-      });
-
-      const mediaAluno = spec.calc(notasDasMetas);
+      const mediaAluno = enrollment.calculateMediaPreFinal();
 
       return {
         enrollment,
@@ -652,9 +643,9 @@ app.get('/api/classes/:classId/students-status', (req: Request, res: Response) =
       };
     });
 
-    // Calcular a média da turma dinamicamente (enquanto n há feature)
     const mediasValidas = studentData.map(d => d.mediaAluno);
-    const mediaTurma = mediasValidas.length > 0
+    const mediaTurma =
+      mediasValidas.length > 0
         ? mediasValidas.reduce((acc, curr) => acc + curr, 0) / mediasValidas.length
         : 0;
 
@@ -669,7 +660,10 @@ app.get('/api/classes/:classId/students-status', (req: Request, res: Response) =
       );
 
       return {
-        student: student.toJSON(),
+        student: {
+          ...student.toJSON(), 
+          cpf: student.getCPF() 
+        },
         mediaAluno,
         mediaTurma,
         temReprovacaoAnterior: temReprovacao,
@@ -683,6 +677,7 @@ app.get('/api/classes/:classId/students-status', (req: Request, res: Response) =
     res.status(500).json({ error: 'Failed to calculate students status' });
   }
 });
+
 
 // Export the app for testing
 export { app, studentSet, classes };
